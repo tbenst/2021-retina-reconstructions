@@ -1,0 +1,438 @@
+---
+affiliation: University of Washington Medicine
+lab: Van Gelder Lab
+people: 'Tyler Benster, Darwin Babino'
+purpose: C3H Pde6+
+mouseNumber: '1'
+species: mouse
+mouseType: C3H Pde6+
+birthdate: '2020-01-23'
+gender: male
+eye: '1'
+orientation: ''
+dissectionTime: '10:30'
+solution: AMES
+retinaWeight: AMES
+meaType: 60MEA200/30iR-ITO
+meaTemperature: '36'
+perfusionTemperature: '36'
+perfusionFlowRate: '3'
+pinhole: '0.1'
+displayMode: video
+experimentNumber: '1'
+filename: R1_E1_AMES_90min_celltyping
+seed: '818794350'
+program: celltyping
+video: Birds.mp4
+epl: "const metadata = {name: \"celltyping\", version: \"0.2.0\"}\n\n// **** CELL TYPE ASSAY ****\n\n// special function for pre-rendering. This is passed as a string\n// and run client-side\nfunction* preRenderFunc(binaryNoiseNframes, randomSeed, checkerH, checkerW) {\n\n\tfunction renderFrame(flatPixelArray) {\n\t\t\t// var canvas = document.createElement(\"canvas\");\n\t\t\tvar canvas = new OffscreenCanvas(windowWidth, windowHeight);\n\t\t\tvar context = canvas.getContext(\"2d\")\n\t\t\t// canvas.width = windowWidth\n\t\t\t// canvas.height = windowHeight\n\t\t\timageData = new ImageData(flatPixelArray, windowWidth, windowHeight)\n\t\t\tcontext.putImageData(imageData, 0, 0)\n\t\t\treturn canvas\n\t}\n\n\tfunction pix2checker(pixIdx, H, W, checkerH, checkerW) {\n\t\t// from index of a flat pixel array\n\t\t// find the index of the corresponding checker\n\t\t// pix2checker(1280*80, 800, 1280, 80, 80) => 16\n\t\t// pix2checker(1280*79, 800, 1280, 80, 80) => 0\n\t\t// pix2checker(1279, 800, 1280, 80, 80) => 15\n\n\t\t// pixIdx is in 1d pixel space\n\t\tcheckersPerRow = Math.ceil(W / checkerW)\n\t\t// 2d pixel space\n\t\tJ = pixIdx % W\n\t\tI = Math.floor(pixIdx / W)\n\t\t\n\t\t// 2d checker space\n\t\tj = Math.floor(J / checkerW)\n\t\ti = Math.floor(I / checkerH)\n\t\t// console.log(pixIdx, H, W, checkerH, checkerW, \"j\",j, \"i\", i)\n\t\t\n\t\t// 1d checker space\n\t\treturn i*checkersPerRow + j\n\t}\n\n\tconsole.assert(binaryNoiseNframes % 2 == 0)\n\t// client-side\n\tlet r = new DeterministicRandom(randomSeed)\n\n\t// render random binary frames that are balanced\n\t// so average intensity per pixel over time is 0.5\n\t// nframes must be even!\n\tlet nPixels = windowHeight * windowWidth\n\tlet checkersPerRow = Math.ceil(windowWidth / checkerW)\n\tlet checkersPerCol = Math.ceil(windowHeight / checkerH)\n\tlet nCheckers = checkersPerRow * checkersPerCol\n\tlet pixelArrays = []\n\tlet checkerIdx\n\tlet singlePixel = Uint8ClampedArray.from(Array(binaryNoiseNframes/2).fill(0).concat(Array(binaryNoiseNframes/2).fill(255)))\n\t// RGBA array https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Pixel_manipulation_with_canvas\n\n\n\t// chunk N frame increments to avoid memory overflow\n\tframes = new Uint8ClampedArray(binaryNoiseNframes*nPixels*4)\n\t// create balanced pixel assignments\n\tpixelArrays = []\n\tfor (var p = 0; p < nCheckers; p++) {\n\t\t// benchmark: 50% of time is from shuffle\n\t\tr.shuffle(singlePixel)\n\t\t// array copy\n\t\tpixelArrays.push(singlePixel.slice(0))\n\t\tif (p % 16 == 0) {\n\t\t\tconsole.log(\"shuffled pixel \", p)\n\t\t\tloadBarChannel.postMessage({deltaProgress: 16/(2*nCheckers)})\n\t\t}\n\t}\n\n\t// assign values of each pixel over time\n\tfor (var p = 0; p < nPixels; p++) {\n\t\tcheckerIdx = pix2checker(p, windowHeight, windowWidth,\n\t\t\tcheckerH, checkerW)\n\t\tsinglePixel = pixelArrays[checkerIdx]\n\t\tfor (var n = 0; n < binaryNoiseNframes; n++) {\n\t\t\t// For example, to read the blue component's value from the pixel at column 200, row 50 in the image, you would do the following:\n\t\t\t// blueComponent = imageData.data[(50 * (imageData.width * 4)) + (200 * 4) + 2]\n\t\t\t// if (p >= 1278960 && n==0) {\n\t\t\t// \tconsole.log(p, windowHeight, windowWidth,\n\t\t\t// \t\tcheckerH, checkerW, checkerIdx)\n\t\t\t// \tsinglePixel[n]\n\t\t\t// \tconsole.log(\"post\")\n\t\t\t// }\n\t\t\tframes[p*4 + n*nPixels*4] = singlePixel[n] // red\n\t\t\tframes[1+p*4 + n*nPixels*4] = singlePixel[n] // green\n\t\t\tframes[2+p*4 + n*nPixels*4] = singlePixel[n] // blue\n\t\t\tframes[3+p*4 + n*nPixels*4] = 255 // alpha\n\t\t\t// if (p > 110000) {\n\t\t\t// \tconsole.log(\"post\")\n\t\t\t// }\n\t\t}\n\t\tif (p % 10000 == 0) {\n\t\t\tconsole.log(\"pushed pixel \", p)\n\t\t\tloadBarChannel.postMessage({deltaProgress: 10000/(2*nPixels)})\n\t\t}\n\t}\n\t// yield each frame\n\tfor (var n = 0; n < binaryNoiseNframes; n++) {\n\t\tyield renderFrame(frames.slice(n*nPixels*4,(n+1)*nPixels*4))\n\t}\n}\n\nconst binaryNoiseDuration = 5*60\nconst frameRate = 60\nconst hz = 5\nconst binaryNoiseLifespan = 1 / hz\nconst binaryNoiseNframes = hz*binaryNoiseDuration\nconst chunkSize = 50\nlet checkerH = 40\nlet checkerW = 40\nconst nJobs = ceil(binaryNoiseNframes / chunkSize)\nconst remainder = ceil(binaryNoiseNframes % chunkSize)\n\n// deterministic seed for caching\nconst renderSeed = 242424\n// can update version to invalidate cache\n// special object for pre-rendering\n// const preRenderArgs = {args: [binaryNoiseNframes, renderSeed, \"binary_noise_v1\"]}\n\nlet preRenderArgs = { nJobs: nJobs, startIdx: [], version: \"binary_noise_v1\"}\nlet startIdx = 0\nfor (let i = 0; i < nJobs; i++) {\n  if (i === (nJobs - 1) && remainder !== 0) {\n    preRenderArgs[i] = [remainder, renderSeed+i, checkerH, checkerW]\n  } else {\n    preRenderArgs[i] = [chunkSize, renderSeed+i, checkerH, checkerW]\n  }\n  preRenderArgs[\"startIdx\"].push(startIdx)\n  startIdx = startIdx + chunkSize\n}\n\nconst celltypeMeta = {group: r.uuid(), label: \"celltype\"}\n\ncelltypeStimuli = []\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\ncelltypeStimuli.push(new Solid(3, \"white\", celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\n// gray is #808080 or 0.5*\"white\"\ncelltypeStimuli.push(new Solid(3, \"gray\", celltypeMeta))\n// start at 0.5 and increase\n// baden params: 8 sec, f1~=0.75Hz, f1~=20Hz (or 40??).\n// negative PI/2 to rise first from (127,127,127)\ncelltypeStimuli.push(new Chirp(8, 0.75, 15, 127.5, 127.5, 8, -PI/2, celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\n// baden params: 8 sec, 2Hz, constrast: 1/30, 1/30, 1/15, 1/10, ... linear to full contrast\ncelltypeStimuli.push(new Chirp(8, 2, 2, 4, 127.5, 8, -PI/2, celltypeMeta))\n\n// moving bars\n// baden params: 0.3 × 1 mm bright bar moving at 1 mm s−1\n// width (px) = deg/um * (xpix/deg + ypix/deg)/2 * 300 um\n// 110 px = (1/34.91*(13.09+12.54)/2 * 300)\n// speed = deg/um * (xpix/deg + ypix/deg)/2 * um / s^2\n// 0.367 px / um; 367 px / mm\nlet ctWidth = 110\nlet ctSpeed = 367\nlet ctAngles = [...Array(24).keys()].map(x => (x*2+1)*PI/24)\nlet ctLifespan = calcBarLifespan(ctSpeed,ctWidth,windowHeight,windowWidth)\nfor (let angle of ctAngles) {\n\tcelltypeStimuli.push(new Wait(2, celltypeMeta))\n\tcelltypeStimuli.push(new Bar(ctLifespan,\"black\",\n\t\tctSpeed, ctWidth, angle, \"white\", celltypeMeta))\n}\n\ncelltypeStimuli.push(new Wait(2, celltypeMeta))\ncelltypeStimuli.push(new Solid(3, \"green\", celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\ncelltypeStimuli.push(new Solid(3, \"blue\", celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\n\n// perfectly balanced random sequence at 5 Hz yielding a total running time of 5 min\n// coarse binary grid\nlet noiseStimuli = []\n\n// let fixationPoint = {x: 0, y: 0}\nlet metaWithSeed = Object.create(celltypeMeta)\nmetaWithSeed.randomSeed = renderSeed\nlet fixationPoint = {x: windowWidth/2, y: windowHeight/2}\nfor (var n = 0; n < binaryNoiseNframes; n++) {\n\tnoiseStimuli.push(new Image(binaryNoiseLifespan, 'black', n, fixationPoint, 1, celltypeMeta))\n}\n\n// shuffle binary frames that are cached instead of slow\n// pre-rendering each time\nr.shuffle(noiseStimuli)\ncelltypeStimuli = celltypeStimuli.concat(noiseStimuli)\n\n// **** END CELL TYPE ASSAY ****\n\nfunction* stimulusGenerator() {\n\tfor (s of celltypeStimuli) {\n\t\tyield s\n\t}\n}\n"
+windowHeight: '800'
+windowWidth: '1280'
+date: 2020-06-23T22:06:34.221Z
+version: 0.5
+flickerVersion: 0.3
+gitSHA: fa7f6c30d3b2de849079fd612e141e4d02686a08
+---
+affiliation: University of Washington Medicine
+lab: Van Gelder Lab
+people: 'Tyler Benster, Darwin Babino'
+purpose: C3H Pde6+
+mouseNumber: '1'
+species: mouse
+mouseType: C3H Pde6+
+birthdate: '2020-01-23'
+gender: male
+eye: '1'
+orientation: ''
+dissectionTime: '10:30'
+solution: AMES
+retinaWeight: AMES
+meaType: 60MEA200/30iR-ITO
+meaTemperature: '36'
+perfusionTemperature: '36'
+perfusionFlowRate: '3'
+pinhole: '0.1'
+displayMode: video
+experimentNumber: '2'
+filename: R1_E2_AMES_120min_celltyping
+seed: '818794350'
+program: celltyping
+video: Birds.mp4
+epl: "const metadata = {name: \"celltyping\", version: \"0.2.0\"}\n\n// **** CELL TYPE ASSAY ****\n\n// special function for pre-rendering. This is passed as a string\n// and run client-side\nfunction* preRenderFunc(binaryNoiseNframes, randomSeed, checkerH, checkerW) {\n\n\tfunction renderFrame(flatPixelArray) {\n\t\t\t// var canvas = document.createElement(\"canvas\");\n\t\t\tvar canvas = new OffscreenCanvas(windowWidth, windowHeight);\n\t\t\tvar context = canvas.getContext(\"2d\")\n\t\t\t// canvas.width = windowWidth\n\t\t\t// canvas.height = windowHeight\n\t\t\timageData = new ImageData(flatPixelArray, windowWidth, windowHeight)\n\t\t\tcontext.putImageData(imageData, 0, 0)\n\t\t\treturn canvas\n\t}\n\n\tfunction pix2checker(pixIdx, H, W, checkerH, checkerW) {\n\t\t// from index of a flat pixel array\n\t\t// find the index of the corresponding checker\n\t\t// pix2checker(1280*80, 800, 1280, 80, 80) => 16\n\t\t// pix2checker(1280*79, 800, 1280, 80, 80) => 0\n\t\t// pix2checker(1279, 800, 1280, 80, 80) => 15\n\n\t\t// pixIdx is in 1d pixel space\n\t\tcheckersPerRow = Math.ceil(W / checkerW)\n\t\t// 2d pixel space\n\t\tJ = pixIdx % W\n\t\tI = Math.floor(pixIdx / W)\n\t\t\n\t\t// 2d checker space\n\t\tj = Math.floor(J / checkerW)\n\t\ti = Math.floor(I / checkerH)\n\t\t// console.log(pixIdx, H, W, checkerH, checkerW, \"j\",j, \"i\", i)\n\t\t\n\t\t// 1d checker space\n\t\treturn i*checkersPerRow + j\n\t}\n\n\tconsole.assert(binaryNoiseNframes % 2 == 0)\n\t// client-side\n\tlet r = new DeterministicRandom(randomSeed)\n\n\t// render random binary frames that are balanced\n\t// so average intensity per pixel over time is 0.5\n\t// nframes must be even!\n\tlet nPixels = windowHeight * windowWidth\n\tlet checkersPerRow = Math.ceil(windowWidth / checkerW)\n\tlet checkersPerCol = Math.ceil(windowHeight / checkerH)\n\tlet nCheckers = checkersPerRow * checkersPerCol\n\tlet pixelArrays = []\n\tlet checkerIdx\n\tlet singlePixel = Uint8ClampedArray.from(Array(binaryNoiseNframes/2).fill(0).concat(Array(binaryNoiseNframes/2).fill(255)))\n\t// RGBA array https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Pixel_manipulation_with_canvas\n\n\n\t// chunk N frame increments to avoid memory overflow\n\tframes = new Uint8ClampedArray(binaryNoiseNframes*nPixels*4)\n\t// create balanced pixel assignments\n\tpixelArrays = []\n\tfor (var p = 0; p < nCheckers; p++) {\n\t\t// benchmark: 50% of time is from shuffle\n\t\tr.shuffle(singlePixel)\n\t\t// array copy\n\t\tpixelArrays.push(singlePixel.slice(0))\n\t\tif (p % 16 == 0) {\n\t\t\tconsole.log(\"shuffled pixel \", p)\n\t\t\tloadBarChannel.postMessage({deltaProgress: 16/(2*nCheckers)})\n\t\t}\n\t}\n\n\t// assign values of each pixel over time\n\tfor (var p = 0; p < nPixels; p++) {\n\t\tcheckerIdx = pix2checker(p, windowHeight, windowWidth,\n\t\t\tcheckerH, checkerW)\n\t\tsinglePixel = pixelArrays[checkerIdx]\n\t\tfor (var n = 0; n < binaryNoiseNframes; n++) {\n\t\t\t// For example, to read the blue component's value from the pixel at column 200, row 50 in the image, you would do the following:\n\t\t\t// blueComponent = imageData.data[(50 * (imageData.width * 4)) + (200 * 4) + 2]\n\t\t\t// if (p >= 1278960 && n==0) {\n\t\t\t// \tconsole.log(p, windowHeight, windowWidth,\n\t\t\t// \t\tcheckerH, checkerW, checkerIdx)\n\t\t\t// \tsinglePixel[n]\n\t\t\t// \tconsole.log(\"post\")\n\t\t\t// }\n\t\t\tframes[p*4 + n*nPixels*4] = singlePixel[n] // red\n\t\t\tframes[1+p*4 + n*nPixels*4] = singlePixel[n] // green\n\t\t\tframes[2+p*4 + n*nPixels*4] = singlePixel[n] // blue\n\t\t\tframes[3+p*4 + n*nPixels*4] = 255 // alpha\n\t\t\t// if (p > 110000) {\n\t\t\t// \tconsole.log(\"post\")\n\t\t\t// }\n\t\t}\n\t\tif (p % 10000 == 0) {\n\t\t\tconsole.log(\"pushed pixel \", p)\n\t\t\tloadBarChannel.postMessage({deltaProgress: 10000/(2*nPixels)})\n\t\t}\n\t}\n\t// yield each frame\n\tfor (var n = 0; n < binaryNoiseNframes; n++) {\n\t\tyield renderFrame(frames.slice(n*nPixels*4,(n+1)*nPixels*4))\n\t}\n}\n\nconst binaryNoiseDuration = 5*60\nconst frameRate = 60\nconst hz = 5\nconst binaryNoiseLifespan = 1 / hz\nconst binaryNoiseNframes = hz*binaryNoiseDuration\nconst chunkSize = 50\nlet checkerH = 40\nlet checkerW = 40\nconst nJobs = ceil(binaryNoiseNframes / chunkSize)\nconst remainder = ceil(binaryNoiseNframes % chunkSize)\n\n// deterministic seed for caching\nconst renderSeed = 242424\n// can update version to invalidate cache\n// special object for pre-rendering\n// const preRenderArgs = {args: [binaryNoiseNframes, renderSeed, \"binary_noise_v1\"]}\n\nlet preRenderArgs = { nJobs: nJobs, startIdx: [], version: \"binary_noise_v1\"}\nlet startIdx = 0\nfor (let i = 0; i < nJobs; i++) {\n  if (i === (nJobs - 1) && remainder !== 0) {\n    preRenderArgs[i] = [remainder, renderSeed+i, checkerH, checkerW]\n  } else {\n    preRenderArgs[i] = [chunkSize, renderSeed+i, checkerH, checkerW]\n  }\n  preRenderArgs[\"startIdx\"].push(startIdx)\n  startIdx = startIdx + chunkSize\n}\n\nconst celltypeMeta = {group: r.uuid(), label: \"celltype\"}\n\ncelltypeStimuli = []\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\ncelltypeStimuli.push(new Solid(3, \"white\", celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\n// gray is #808080 or 0.5*\"white\"\ncelltypeStimuli.push(new Solid(3, \"gray\", celltypeMeta))\n// start at 0.5 and increase\n// baden params: 8 sec, f1~=0.75Hz, f1~=20Hz (or 40??).\n// negative PI/2 to rise first from (127,127,127)\ncelltypeStimuli.push(new Chirp(8, 0.75, 15, 127.5, 127.5, 8, -PI/2, celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\n// baden params: 8 sec, 2Hz, constrast: 1/30, 1/30, 1/15, 1/10, ... linear to full contrast\ncelltypeStimuli.push(new Chirp(8, 2, 2, 4, 127.5, 8, -PI/2, celltypeMeta))\n\n// moving bars\n// baden params: 0.3 × 1 mm bright bar moving at 1 mm s−1\n// width (px) = deg/um * (xpix/deg + ypix/deg)/2 * 300 um\n// 110 px = (1/34.91*(13.09+12.54)/2 * 300)\n// speed = deg/um * (xpix/deg + ypix/deg)/2 * um / s^2\n// 0.367 px / um; 367 px / mm\nlet ctWidth = 110\nlet ctSpeed = 367\nlet ctAngles = [...Array(24).keys()].map(x => (x*2+1)*PI/24)\nlet ctLifespan = calcBarLifespan(ctSpeed,ctWidth,windowHeight,windowWidth)\nfor (let angle of ctAngles) {\n\tcelltypeStimuli.push(new Wait(2, celltypeMeta))\n\tcelltypeStimuli.push(new Bar(ctLifespan,\"black\",\n\t\tctSpeed, ctWidth, angle, \"white\", celltypeMeta))\n}\n\ncelltypeStimuli.push(new Wait(2, celltypeMeta))\ncelltypeStimuli.push(new Solid(3, \"green\", celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\ncelltypeStimuli.push(new Solid(3, \"blue\", celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\n\n// perfectly balanced random sequence at 5 Hz yielding a total running time of 5 min\n// coarse binary grid\nlet noiseStimuli = []\n\n// let fixationPoint = {x: 0, y: 0}\nlet metaWithSeed = Object.create(celltypeMeta)\nmetaWithSeed.randomSeed = renderSeed\nlet fixationPoint = {x: windowWidth/2, y: windowHeight/2}\nfor (var n = 0; n < binaryNoiseNframes; n++) {\n\tnoiseStimuli.push(new Image(binaryNoiseLifespan, 'black', n, fixationPoint, 1, celltypeMeta))\n}\n\n// shuffle binary frames that are cached instead of slow\n// pre-rendering each time\nr.shuffle(noiseStimuli)\ncelltypeStimuli = celltypeStimuli.concat(noiseStimuli)\n\n// **** END CELL TYPE ASSAY ****\n\nfunction* stimulusGenerator() {\n\tfor (s of celltypeStimuli) {\n\t\tyield s\n\t}\n}\n"
+windowHeight: '800'
+windowWidth: '1280'
+date: 2020-06-23T23:44:47.931Z
+version: 0.5
+flickerVersion: 0.3
+gitSHA: fa7f6c30d3b2de849079fd612e141e4d02686a08
+---
+affiliation: University of Washington Medicine
+lab: Van Gelder Lab
+people: 'Tyler Benster, Darwin Babino'
+purpose: C3H Pde6+
+mouseNumber: '1'
+species: mouse
+mouseType: C3H Pde6+
+birthdate: '2020-01-23'
+gender: male
+eye: '1'
+orientation: ''
+dissectionTime: '10:30'
+solution: AMES
+retinaWeight: AMES
+meaType: 60MEA200/30iR-ITO
+meaTemperature: '36'
+perfusionTemperature: '36'
+perfusionFlowRate: '3'
+pinhole: '0.1'
+displayMode: video
+experimentNumber: '3'
+filename: R1_E3_AMES_200min_200f_14l_rgb
+seed: '818794350'
+program: 200faces_14looks_rgb
+video: Birds.mp4
+epl: >
+  const metadata = {name: "200faces_14looks", version: "0.2.0"}
+
+  const duration = 0.5
+
+  const repetitions = 1
+
+  const scaleX = 1.125
+
+  const scaleY = 1.125
+
+  const images = [...Array(200).keys()].map(x => String(1+x))
+
+  //  assume format like 8b.jpg
+
+  const subImages = [...Array(14).keys()].map(x => String(1+x).padStart(2,"0"))
+
+
+  imageBase = "/images/FEI_Face_200f_14l_rgb/"
+
+  imageExt = ".jpg"
+
+  imageSrcs = {} // use as Set
+
+  // 24 / minute
+
+  stimuli = []
+
+  let imageSrc = ""
+
+  let id, cohort
+
+  let meta = {group: r.uuid(), label: "celltype"}
+
+  // TODO fixationPoint is broken / unintuitive
+
+  let fixationPoint = {x: 600*scaleX/2, y: 360*scaleY/2} // center the 260 x 360
+  image
+
+  const classLabels = ["Person number", "imageNum"]
+
+  for (let rep = 0; rep < repetitions; rep++) {
+    cohort = r.uuid()
+    for (const n of images) {
+      for (const s of subImages) {
+        id = r.uuid()
+        imageSrc = imageBase + n + "-" + s + imageExt
+        imageSrcs[imageSrc] = ""
+        imageClass = [ n, s ]
+        im = new Image(duration, "black", imageSrc, fixationPoint, [scaleX, scaleY],
+        {class: imageClass, classLabels: classLabels,
+          group: id, cohort: cohort, block: id})
+        before = new Wait(duration, {group: id, block: true})
+        after = new Wait(r.randi(30,45)/60, {group: id})
+        stimuli.push([before, im, after])
+      }
+    }
+  }
+
+
+  r.shuffle(stimuli)
+
+  stimuli = flatten(stimuli)
+
+
+  function* stimulusGenerator() {
+      for (s of stimuli) {
+          yield s
+      }
+  }
+windowHeight: '800'
+windowWidth: '1280'
+date: 2020-06-24T00:01:49.791Z
+version: 0.5
+flickerVersion: 0.3
+gitSHA: fa7f6c30d3b2de849079fd612e141e4d02686a08
+---
+affiliation: University of Washington Medicine
+lab: Van Gelder Lab
+people: 'Tyler Benster, Darwin Babino'
+purpose: C3H Pde6+
+mouseNumber: '1'
+species: mouse
+mouseType: C3H Pde6+
+birthdate: '2020-01-23'
+gender: male
+eye: '1'
+orientation: ''
+dissectionTime: '10:30'
+solution: AMES
+retinaWeight: AMES
+meaType: 60MEA200/30iR-ITO
+meaTemperature: '36'
+perfusionTemperature: '36'
+perfusionFlowRate: '3'
+pinhole: '0.1'
+displayMode: video
+experimentNumber: '4'
+filename: R1_E4_AMES_400min_200f_14l_rgb
+seed: '818794350'
+program: 200faces_14looks_rgb
+video: Birds.mp4
+epl: >
+  const metadata = {name: "200faces_14looks", version: "0.2.0"}
+
+  const duration = 0.5
+
+  const repetitions = 1
+
+  const scaleX = 1.125
+
+  const scaleY = 1.125
+
+  const images = [...Array(200).keys()].map(x => String(1+x))
+
+  //  assume format like 8b.jpg
+
+  const subImages = [...Array(14).keys()].map(x => String(1+x).padStart(2,"0"))
+
+
+  imageBase = "/images/FEI_Face_200f_14l_rgb/"
+
+  imageExt = ".jpg"
+
+  imageSrcs = {} // use as Set
+
+  // 24 / minute
+
+  stimuli = []
+
+  let imageSrc = ""
+
+  let id, cohort
+
+  let meta = {group: r.uuid(), label: "celltype"}
+
+  // TODO fixationPoint is broken / unintuitive
+
+  let fixationPoint = {x: 600*scaleX/2, y: 360*scaleY/2} // center the 260 x 360
+  image
+
+  const classLabels = ["Person number", "imageNum"]
+
+  for (let rep = 0; rep < repetitions; rep++) {
+    cohort = r.uuid()
+    for (const n of images) {
+      for (const s of subImages) {
+        id = r.uuid()
+        imageSrc = imageBase + n + "-" + s + imageExt
+        imageSrcs[imageSrc] = ""
+        imageClass = [ n, s ]
+        im = new Image(duration, "black", imageSrc, fixationPoint, [scaleX, scaleY],
+        {class: imageClass, classLabels: classLabels,
+          group: id, cohort: cohort, block: id})
+        before = new Wait(duration, {group: id, block: true})
+        after = new Wait(r.randi(30,45)/60, {group: id})
+        stimuli.push([before, im, after])
+      }
+    }
+  }
+
+
+  r.shuffle(stimuli)
+
+  stimuli = flatten(stimuli)
+
+
+  function* stimulusGenerator() {
+      for (s of stimuli) {
+          yield s
+      }
+  }
+windowHeight: '800'
+windowWidth: '1280'
+date: 2020-06-24T02:50:55.682Z
+version: 0.5
+flickerVersion: 0.3
+gitSHA: fa7f6c30d3b2de849079fd612e141e4d02686a08
+---
+affiliation: University of Washington Medicine
+lab: Van Gelder Lab
+people: 'Tyler Benster, Darwin Babino'
+purpose: C3H Pde6+
+mouseNumber: '1'
+species: mouse
+mouseType: C3H Pde6+
+birthdate: '2020-01-23'
+gender: male
+eye: '1'
+orientation: ''
+dissectionTime: '10:30'
+solution: AMES
+retinaWeight: AMES
+meaType: 60MEA200/30iR-ITO
+meaTemperature: '36'
+perfusionTemperature: '36'
+perfusionFlowRate: '3'
+pinhole: '0.1'
+displayMode: video
+experimentNumber: '5'
+filename: R1_E5_AMES_520min_celltyping
+seed: '818794350'
+program: celltyping
+video: Birds.mp4
+epl: "const metadata = {name: \"celltyping\", version: \"0.2.0\"}\n\n// **** CELL TYPE ASSAY ****\n\n// special function for pre-rendering. This is passed as a string\n// and run client-side\nfunction* preRenderFunc(binaryNoiseNframes, randomSeed, checkerH, checkerW) {\n\n\tfunction renderFrame(flatPixelArray) {\n\t\t\t// var canvas = document.createElement(\"canvas\");\n\t\t\tvar canvas = new OffscreenCanvas(windowWidth, windowHeight);\n\t\t\tvar context = canvas.getContext(\"2d\")\n\t\t\t// canvas.width = windowWidth\n\t\t\t// canvas.height = windowHeight\n\t\t\timageData = new ImageData(flatPixelArray, windowWidth, windowHeight)\n\t\t\tcontext.putImageData(imageData, 0, 0)\n\t\t\treturn canvas\n\t}\n\n\tfunction pix2checker(pixIdx, H, W, checkerH, checkerW) {\n\t\t// from index of a flat pixel array\n\t\t// find the index of the corresponding checker\n\t\t// pix2checker(1280*80, 800, 1280, 80, 80) => 16\n\t\t// pix2checker(1280*79, 800, 1280, 80, 80) => 0\n\t\t// pix2checker(1279, 800, 1280, 80, 80) => 15\n\n\t\t// pixIdx is in 1d pixel space\n\t\tcheckersPerRow = Math.ceil(W / checkerW)\n\t\t// 2d pixel space\n\t\tJ = pixIdx % W\n\t\tI = Math.floor(pixIdx / W)\n\t\t\n\t\t// 2d checker space\n\t\tj = Math.floor(J / checkerW)\n\t\ti = Math.floor(I / checkerH)\n\t\t// console.log(pixIdx, H, W, checkerH, checkerW, \"j\",j, \"i\", i)\n\t\t\n\t\t// 1d checker space\n\t\treturn i*checkersPerRow + j\n\t}\n\n\tconsole.assert(binaryNoiseNframes % 2 == 0)\n\t// client-side\n\tlet r = new DeterministicRandom(randomSeed)\n\n\t// render random binary frames that are balanced\n\t// so average intensity per pixel over time is 0.5\n\t// nframes must be even!\n\tlet nPixels = windowHeight * windowWidth\n\tlet checkersPerRow = Math.ceil(windowWidth / checkerW)\n\tlet checkersPerCol = Math.ceil(windowHeight / checkerH)\n\tlet nCheckers = checkersPerRow * checkersPerCol\n\tlet pixelArrays = []\n\tlet checkerIdx\n\tlet singlePixel = Uint8ClampedArray.from(Array(binaryNoiseNframes/2).fill(0).concat(Array(binaryNoiseNframes/2).fill(255)))\n\t// RGBA array https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Pixel_manipulation_with_canvas\n\n\n\t// chunk N frame increments to avoid memory overflow\n\tframes = new Uint8ClampedArray(binaryNoiseNframes*nPixels*4)\n\t// create balanced pixel assignments\n\tpixelArrays = []\n\tfor (var p = 0; p < nCheckers; p++) {\n\t\t// benchmark: 50% of time is from shuffle\n\t\tr.shuffle(singlePixel)\n\t\t// array copy\n\t\tpixelArrays.push(singlePixel.slice(0))\n\t\tif (p % 16 == 0) {\n\t\t\tconsole.log(\"shuffled pixel \", p)\n\t\t\tloadBarChannel.postMessage({deltaProgress: 16/(2*nCheckers)})\n\t\t}\n\t}\n\n\t// assign values of each pixel over time\n\tfor (var p = 0; p < nPixels; p++) {\n\t\tcheckerIdx = pix2checker(p, windowHeight, windowWidth,\n\t\t\tcheckerH, checkerW)\n\t\tsinglePixel = pixelArrays[checkerIdx]\n\t\tfor (var n = 0; n < binaryNoiseNframes; n++) {\n\t\t\t// For example, to read the blue component's value from the pixel at column 200, row 50 in the image, you would do the following:\n\t\t\t// blueComponent = imageData.data[(50 * (imageData.width * 4)) + (200 * 4) + 2]\n\t\t\t// if (p >= 1278960 && n==0) {\n\t\t\t// \tconsole.log(p, windowHeight, windowWidth,\n\t\t\t// \t\tcheckerH, checkerW, checkerIdx)\n\t\t\t// \tsinglePixel[n]\n\t\t\t// \tconsole.log(\"post\")\n\t\t\t// }\n\t\t\tframes[p*4 + n*nPixels*4] = singlePixel[n] // red\n\t\t\tframes[1+p*4 + n*nPixels*4] = singlePixel[n] // green\n\t\t\tframes[2+p*4 + n*nPixels*4] = singlePixel[n] // blue\n\t\t\tframes[3+p*4 + n*nPixels*4] = 255 // alpha\n\t\t\t// if (p > 110000) {\n\t\t\t// \tconsole.log(\"post\")\n\t\t\t// }\n\t\t}\n\t\tif (p % 10000 == 0) {\n\t\t\tconsole.log(\"pushed pixel \", p)\n\t\t\tloadBarChannel.postMessage({deltaProgress: 10000/(2*nPixels)})\n\t\t}\n\t}\n\t// yield each frame\n\tfor (var n = 0; n < binaryNoiseNframes; n++) {\n\t\tyield renderFrame(frames.slice(n*nPixels*4,(n+1)*nPixels*4))\n\t}\n}\n\nconst binaryNoiseDuration = 5*60\nconst frameRate = 60\nconst hz = 5\nconst binaryNoiseLifespan = 1 / hz\nconst binaryNoiseNframes = hz*binaryNoiseDuration\nconst chunkSize = 50\nlet checkerH = 40\nlet checkerW = 40\nconst nJobs = ceil(binaryNoiseNframes / chunkSize)\nconst remainder = ceil(binaryNoiseNframes % chunkSize)\n\n// deterministic seed for caching\nconst renderSeed = 242424\n// can update version to invalidate cache\n// special object for pre-rendering\n// const preRenderArgs = {args: [binaryNoiseNframes, renderSeed, \"binary_noise_v1\"]}\n\nlet preRenderArgs = { nJobs: nJobs, startIdx: [], version: \"binary_noise_v1\"}\nlet startIdx = 0\nfor (let i = 0; i < nJobs; i++) {\n  if (i === (nJobs - 1) && remainder !== 0) {\n    preRenderArgs[i] = [remainder, renderSeed+i, checkerH, checkerW]\n  } else {\n    preRenderArgs[i] = [chunkSize, renderSeed+i, checkerH, checkerW]\n  }\n  preRenderArgs[\"startIdx\"].push(startIdx)\n  startIdx = startIdx + chunkSize\n}\n\nconst celltypeMeta = {group: r.uuid(), label: \"celltype\"}\n\ncelltypeStimuli = []\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\ncelltypeStimuli.push(new Solid(3, \"white\", celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\n// gray is #808080 or 0.5*\"white\"\ncelltypeStimuli.push(new Solid(3, \"gray\", celltypeMeta))\n// start at 0.5 and increase\n// baden params: 8 sec, f1~=0.75Hz, f1~=20Hz (or 40??).\n// negative PI/2 to rise first from (127,127,127)\ncelltypeStimuli.push(new Chirp(8, 0.75, 15, 127.5, 127.5, 8, -PI/2, celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\n// baden params: 8 sec, 2Hz, constrast: 1/30, 1/30, 1/15, 1/10, ... linear to full contrast\ncelltypeStimuli.push(new Chirp(8, 2, 2, 4, 127.5, 8, -PI/2, celltypeMeta))\n\n// moving bars\n// baden params: 0.3 × 1 mm bright bar moving at 1 mm s−1\n// width (px) = deg/um * (xpix/deg + ypix/deg)/2 * 300 um\n// 110 px = (1/34.91*(13.09+12.54)/2 * 300)\n// speed = deg/um * (xpix/deg + ypix/deg)/2 * um / s^2\n// 0.367 px / um; 367 px / mm\nlet ctWidth = 110\nlet ctSpeed = 367\nlet ctAngles = [...Array(24).keys()].map(x => (x*2+1)*PI/24)\nlet ctLifespan = calcBarLifespan(ctSpeed,ctWidth,windowHeight,windowWidth)\nfor (let angle of ctAngles) {\n\tcelltypeStimuli.push(new Wait(2, celltypeMeta))\n\tcelltypeStimuli.push(new Bar(ctLifespan,\"black\",\n\t\tctSpeed, ctWidth, angle, \"white\", celltypeMeta))\n}\n\ncelltypeStimuli.push(new Wait(2, celltypeMeta))\ncelltypeStimuli.push(new Solid(3, \"green\", celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\ncelltypeStimuli.push(new Solid(3, \"blue\", celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\n\n// perfectly balanced random sequence at 5 Hz yielding a total running time of 5 min\n// coarse binary grid\nlet noiseStimuli = []\n\n// let fixationPoint = {x: 0, y: 0}\nlet metaWithSeed = Object.create(celltypeMeta)\nmetaWithSeed.randomSeed = renderSeed\nlet fixationPoint = {x: windowWidth/2, y: windowHeight/2}\nfor (var n = 0; n < binaryNoiseNframes; n++) {\n\tnoiseStimuli.push(new Image(binaryNoiseLifespan, 'black', n, fixationPoint, 1, celltypeMeta))\n}\n\n// shuffle binary frames that are cached instead of slow\n// pre-rendering each time\nr.shuffle(noiseStimuli)\ncelltypeStimuli = celltypeStimuli.concat(noiseStimuli)\n\n// **** END CELL TYPE ASSAY ****\n\nfunction* stimulusGenerator() {\n\tfor (s of celltypeStimuli) {\n\t\tyield s\n\t}\n}\n"
+windowHeight: '800'
+windowWidth: '1280'
+date: 2020-06-24T05:07:54.428Z
+version: 0.5
+flickerVersion: 0.3
+gitSHA: fa7f6c30d3b2de849079fd612e141e4d02686a08
+---
+affiliation: University of Washington Medicine
+lab: Van Gelder Lab
+people: 'Tyler Benster, Darwin Babino'
+purpose: C3H Pde6+
+mouseNumber: '1'
+species: mouse
+mouseType: C3H Pde6+
+birthdate: '2020-01-23'
+gender: male
+eye: '1'
+orientation: ''
+dissectionTime: '10:30'
+solution: AMES
+retinaWeight: AMES
+meaType: 60MEA200/30iR-ITO
+meaTemperature: '36'
+perfusionTemperature: '36'
+perfusionFlowRate: '3'
+pinhole: '0.1'
+displayMode: video
+experimentNumber: '6'
+filename: R1_E6_AMES_590min_200f_14l_rgb
+seed: '818794350'
+program: 200faces_14looks_rgb
+video: Birds.mp4
+epl: >
+  const metadata = {name: "200faces_14looks", version: "0.2.0"}
+
+  const duration = 0.5
+
+  const repetitions = 1
+
+  const scaleX = 1.125
+
+  const scaleY = 1.125
+
+  const images = [...Array(200).keys()].map(x => String(1+x))
+
+  //  assume format like 8b.jpg
+
+  const subImages = [...Array(14).keys()].map(x => String(1+x).padStart(2,"0"))
+
+
+  imageBase = "/images/FEI_Face_200f_14l_rgb/"
+
+  imageExt = ".jpg"
+
+  imageSrcs = {} // use as Set
+
+  // 24 / minute
+
+  stimuli = []
+
+  let imageSrc = ""
+
+  let id, cohort
+
+  let meta = {group: r.uuid(), label: "celltype"}
+
+  // TODO fixationPoint is broken / unintuitive
+
+  let fixationPoint = {x: 600*scaleX/2, y: 360*scaleY/2} // center the 260 x 360
+  image
+
+  const classLabels = ["Person number", "imageNum"]
+
+  for (let rep = 0; rep < repetitions; rep++) {
+    cohort = r.uuid()
+    for (const n of images) {
+      for (const s of subImages) {
+        id = r.uuid()
+        imageSrc = imageBase + n + "-" + s + imageExt
+        imageSrcs[imageSrc] = ""
+        imageClass = [ n, s ]
+        im = new Image(duration, "black", imageSrc, fixationPoint, [scaleX, scaleY],
+        {class: imageClass, classLabels: classLabels,
+          group: id, cohort: cohort, block: id})
+        before = new Wait(duration, {group: id, block: true})
+        after = new Wait(r.randi(30,45)/60, {group: id})
+        stimuli.push([before, im, after])
+      }
+    }
+  }
+
+
+  r.shuffle(stimuli)
+
+  stimuli = flatten(stimuli)
+
+
+  function* stimulusGenerator() {
+      for (s of stimuli) {
+          yield s
+      }
+  }
+windowHeight: '800'
+windowWidth: '1280'
+date: 2020-06-24T06:01:46.060Z
+version: 0.5
+flickerVersion: 0.3
+gitSHA: fa7f6c30d3b2de849079fd612e141e4d02686a08
+---
+affiliation: University of Washington Medicine
+lab: Van Gelder Lab
+people: 'Tyler Benster, Darwin Babino'
+purpose: C3H Pde6+
+mouseNumber: '1'
+species: mouse
+mouseType: C3H Pde6+
+birthdate: '2020-01-23'
+gender: male
+eye: '1'
+orientation: ''
+dissectionTime: '10:30'
+solution: AMES
+retinaWeight: AMES
+meaType: 60MEA200/30iR-ITO
+meaTemperature: '36'
+perfusionTemperature: '36'
+perfusionFlowRate: '3'
+pinhole: '0.1'
+displayMode: video
+experimentNumber: '7'
+filename: R1_E7_AMES_700min_celltyping
+seed: '818794350'
+program: celltyping
+video: Birds.mp4
+epl: "const metadata = {name: \"celltyping\", version: \"0.2.0\"}\n\n// **** CELL TYPE ASSAY ****\n\n// special function for pre-rendering. This is passed as a string\n// and run client-side\nfunction* preRenderFunc(binaryNoiseNframes, randomSeed, checkerH, checkerW) {\n\n\tfunction renderFrame(flatPixelArray) {\n\t\t\t// var canvas = document.createElement(\"canvas\");\n\t\t\tvar canvas = new OffscreenCanvas(windowWidth, windowHeight);\n\t\t\tvar context = canvas.getContext(\"2d\")\n\t\t\t// canvas.width = windowWidth\n\t\t\t// canvas.height = windowHeight\n\t\t\timageData = new ImageData(flatPixelArray, windowWidth, windowHeight)\n\t\t\tcontext.putImageData(imageData, 0, 0)\n\t\t\treturn canvas\n\t}\n\n\tfunction pix2checker(pixIdx, H, W, checkerH, checkerW) {\n\t\t// from index of a flat pixel array\n\t\t// find the index of the corresponding checker\n\t\t// pix2checker(1280*80, 800, 1280, 80, 80) => 16\n\t\t// pix2checker(1280*79, 800, 1280, 80, 80) => 0\n\t\t// pix2checker(1279, 800, 1280, 80, 80) => 15\n\n\t\t// pixIdx is in 1d pixel space\n\t\tcheckersPerRow = Math.ceil(W / checkerW)\n\t\t// 2d pixel space\n\t\tJ = pixIdx % W\n\t\tI = Math.floor(pixIdx / W)\n\t\t\n\t\t// 2d checker space\n\t\tj = Math.floor(J / checkerW)\n\t\ti = Math.floor(I / checkerH)\n\t\t// console.log(pixIdx, H, W, checkerH, checkerW, \"j\",j, \"i\", i)\n\t\t\n\t\t// 1d checker space\n\t\treturn i*checkersPerRow + j\n\t}\n\n\tconsole.assert(binaryNoiseNframes % 2 == 0)\n\t// client-side\n\tlet r = new DeterministicRandom(randomSeed)\n\n\t// render random binary frames that are balanced\n\t// so average intensity per pixel over time is 0.5\n\t// nframes must be even!\n\tlet nPixels = windowHeight * windowWidth\n\tlet checkersPerRow = Math.ceil(windowWidth / checkerW)\n\tlet checkersPerCol = Math.ceil(windowHeight / checkerH)\n\tlet nCheckers = checkersPerRow * checkersPerCol\n\tlet pixelArrays = []\n\tlet checkerIdx\n\tlet singlePixel = Uint8ClampedArray.from(Array(binaryNoiseNframes/2).fill(0).concat(Array(binaryNoiseNframes/2).fill(255)))\n\t// RGBA array https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Pixel_manipulation_with_canvas\n\n\n\t// chunk N frame increments to avoid memory overflow\n\tframes = new Uint8ClampedArray(binaryNoiseNframes*nPixels*4)\n\t// create balanced pixel assignments\n\tpixelArrays = []\n\tfor (var p = 0; p < nCheckers; p++) {\n\t\t// benchmark: 50% of time is from shuffle\n\t\tr.shuffle(singlePixel)\n\t\t// array copy\n\t\tpixelArrays.push(singlePixel.slice(0))\n\t\tif (p % 16 == 0) {\n\t\t\tconsole.log(\"shuffled pixel \", p)\n\t\t\tloadBarChannel.postMessage({deltaProgress: 16/(2*nCheckers)})\n\t\t}\n\t}\n\n\t// assign values of each pixel over time\n\tfor (var p = 0; p < nPixels; p++) {\n\t\tcheckerIdx = pix2checker(p, windowHeight, windowWidth,\n\t\t\tcheckerH, checkerW)\n\t\tsinglePixel = pixelArrays[checkerIdx]\n\t\tfor (var n = 0; n < binaryNoiseNframes; n++) {\n\t\t\t// For example, to read the blue component's value from the pixel at column 200, row 50 in the image, you would do the following:\n\t\t\t// blueComponent = imageData.data[(50 * (imageData.width * 4)) + (200 * 4) + 2]\n\t\t\t// if (p >= 1278960 && n==0) {\n\t\t\t// \tconsole.log(p, windowHeight, windowWidth,\n\t\t\t// \t\tcheckerH, checkerW, checkerIdx)\n\t\t\t// \tsinglePixel[n]\n\t\t\t// \tconsole.log(\"post\")\n\t\t\t// }\n\t\t\tframes[p*4 + n*nPixels*4] = singlePixel[n] // red\n\t\t\tframes[1+p*4 + n*nPixels*4] = singlePixel[n] // green\n\t\t\tframes[2+p*4 + n*nPixels*4] = singlePixel[n] // blue\n\t\t\tframes[3+p*4 + n*nPixels*4] = 255 // alpha\n\t\t\t// if (p > 110000) {\n\t\t\t// \tconsole.log(\"post\")\n\t\t\t// }\n\t\t}\n\t\tif (p % 10000 == 0) {\n\t\t\tconsole.log(\"pushed pixel \", p)\n\t\t\tloadBarChannel.postMessage({deltaProgress: 10000/(2*nPixels)})\n\t\t}\n\t}\n\t// yield each frame\n\tfor (var n = 0; n < binaryNoiseNframes; n++) {\n\t\tyield renderFrame(frames.slice(n*nPixels*4,(n+1)*nPixels*4))\n\t}\n}\n\nconst binaryNoiseDuration = 5*60\nconst frameRate = 60\nconst hz = 5\nconst binaryNoiseLifespan = 1 / hz\nconst binaryNoiseNframes = hz*binaryNoiseDuration\nconst chunkSize = 50\nlet checkerH = 40\nlet checkerW = 40\nconst nJobs = ceil(binaryNoiseNframes / chunkSize)\nconst remainder = ceil(binaryNoiseNframes % chunkSize)\n\n// deterministic seed for caching\nconst renderSeed = 242424\n// can update version to invalidate cache\n// special object for pre-rendering\n// const preRenderArgs = {args: [binaryNoiseNframes, renderSeed, \"binary_noise_v1\"]}\n\nlet preRenderArgs = { nJobs: nJobs, startIdx: [], version: \"binary_noise_v1\"}\nlet startIdx = 0\nfor (let i = 0; i < nJobs; i++) {\n  if (i === (nJobs - 1) && remainder !== 0) {\n    preRenderArgs[i] = [remainder, renderSeed+i, checkerH, checkerW]\n  } else {\n    preRenderArgs[i] = [chunkSize, renderSeed+i, checkerH, checkerW]\n  }\n  preRenderArgs[\"startIdx\"].push(startIdx)\n  startIdx = startIdx + chunkSize\n}\n\nconst celltypeMeta = {group: r.uuid(), label: \"celltype\"}\n\ncelltypeStimuli = []\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\ncelltypeStimuli.push(new Solid(3, \"white\", celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\n// gray is #808080 or 0.5*\"white\"\ncelltypeStimuli.push(new Solid(3, \"gray\", celltypeMeta))\n// start at 0.5 and increase\n// baden params: 8 sec, f1~=0.75Hz, f1~=20Hz (or 40??).\n// negative PI/2 to rise first from (127,127,127)\ncelltypeStimuli.push(new Chirp(8, 0.75, 15, 127.5, 127.5, 8, -PI/2, celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\n// baden params: 8 sec, 2Hz, constrast: 1/30, 1/30, 1/15, 1/10, ... linear to full contrast\ncelltypeStimuli.push(new Chirp(8, 2, 2, 4, 127.5, 8, -PI/2, celltypeMeta))\n\n// moving bars\n// baden params: 0.3 × 1 mm bright bar moving at 1 mm s−1\n// width (px) = deg/um * (xpix/deg + ypix/deg)/2 * 300 um\n// 110 px = (1/34.91*(13.09+12.54)/2 * 300)\n// speed = deg/um * (xpix/deg + ypix/deg)/2 * um / s^2\n// 0.367 px / um; 367 px / mm\nlet ctWidth = 110\nlet ctSpeed = 367\nlet ctAngles = [...Array(24).keys()].map(x => (x*2+1)*PI/24)\nlet ctLifespan = calcBarLifespan(ctSpeed,ctWidth,windowHeight,windowWidth)\nfor (let angle of ctAngles) {\n\tcelltypeStimuli.push(new Wait(2, celltypeMeta))\n\tcelltypeStimuli.push(new Bar(ctLifespan,\"black\",\n\t\tctSpeed, ctWidth, angle, \"white\", celltypeMeta))\n}\n\ncelltypeStimuli.push(new Wait(2, celltypeMeta))\ncelltypeStimuli.push(new Solid(3, \"green\", celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\ncelltypeStimuli.push(new Solid(3, \"blue\", celltypeMeta))\ncelltypeStimuli.push(new Wait(3, celltypeMeta))\n\n// perfectly balanced random sequence at 5 Hz yielding a total running time of 5 min\n// coarse binary grid\nlet noiseStimuli = []\n\n// let fixationPoint = {x: 0, y: 0}\nlet metaWithSeed = Object.create(celltypeMeta)\nmetaWithSeed.randomSeed = renderSeed\nlet fixationPoint = {x: windowWidth/2, y: windowHeight/2}\nfor (var n = 0; n < binaryNoiseNframes; n++) {\n\tnoiseStimuli.push(new Image(binaryNoiseLifespan, 'black', n, fixationPoint, 1, celltypeMeta))\n}\n\n// shuffle binary frames that are cached instead of slow\n// pre-rendering each time\nr.shuffle(noiseStimuli)\ncelltypeStimuli = celltypeStimuli.concat(noiseStimuli)\n\n// **** END CELL TYPE ASSAY ****\n\nfunction* stimulusGenerator() {\n\tfor (s of celltypeStimuli) {\n\t\tyield s\n\t}\n}\n"
+windowHeight: '800'
+windowWidth: '1280'
+date: 2020-06-24T07:26:37.504Z
+version: 0.5
+flickerVersion: 0.3
+gitSHA: fa7f6c30d3b2de849079fd612e141e4d02686a08
