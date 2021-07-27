@@ -1,14 +1,14 @@
 # 2021-retina-reconstructions
 Code for the paper, "Reconstruction of visual images from murine retinal ganglion cell spiking activity using convolutional neural networks"
 
-## acquiring the data
+## Acquiring the data
 In order to clone the data with this repository, please have [git-lfs](https://git-lfs.github.com/) installed.
 
 The data contains each image and response for all 2800 images presented to the retina (FEI Faces dataset) in a format convenient for machine learning. The retina response is spike sorted data, binned at 1ms for convenient manipulation. Please get in touch if you're interested in acquiring data with more precise spike timing, or the raw voltage traces (very large file)
 
-## required software
+## Required software
 ### Python
-All models were trained in Pythin. A recent version of Python is preferred (e.g. Python 3.8). Required packages include PyTorch, PyTables, Matplotlib, Numpy, and OpenCv2.
+All models were trained in Python. A recent version of Python is preferred (e.g. Python 3.8). Required packages include PyTorch, PyTables, Matplotlib, Numpy, and OpenCv2.
 
 ### Julia
 Most figures were compiled using Julia's Compose.jl. To run final-figures.jl, you will need IterTools, Cairo, Colors, Compose, Fontconfig, PyCall, StatsBase, Glob, FileIO, Measures, Format, Unitful, and Images. Julia 1.6 is recommended.
